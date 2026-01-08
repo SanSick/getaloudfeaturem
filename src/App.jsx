@@ -14,7 +14,7 @@ function App() {
   const [recordingUrl, setRecordingUrl] = useState(null);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-
+  const [score, setScore] = useState(null);
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -60,7 +60,7 @@ function App() {
     utterance.onend = () => {
       setIsSpeaking(false);
     };
-  
+
     synth.cancel();
     synth.speak(utterance);
     setIsSpeaking(true);
@@ -84,14 +84,34 @@ function App() {
   const stopRecording = () => {
     mediaRecorderRef.current.stop();
     setIsRecording(false);
-
+  
     mediaRecorderRef.current.onstop = async () => {
       const audioBlob = new Blob(audioChunksRef.current, {
-        type: "audio/webm",
+        type: "audio/webm"
       });
+  
+      
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+  
+      audio.onloadedmetadata = () => {
+        const duration = audio.duration;
+  
+        let calculatedScore = 0;
+        if (duration < 5) calculatedScore = 15;
+        else if (duration < 10) calculatedScore = 30;
+        else if (duration < 15) calculatedScore = 50;
+        else if (duration < 20) calculatedScore = 70;
+        else if (duration < 25) calculatedScore = 80;
+        else calculatedScore = 90;
+  
+        setScore(calculatedScore);
+      };
+  
       uploadRecording(audioBlob);
     };
   };
+  
 
   // Upload to Supabase
   const uploadRecording = async (audioBlob) => {
@@ -101,11 +121,11 @@ function App() {
       .from("read-aloud-recordings")
       .upload(fileName, audioBlob);
 
-      if (error) {
-        console.error("Supabase upload error:", error);
-        alert(error.message);
-        return;
-      }
+    if (error) {
+      console.error("Supabase upload error:", error);
+      alert(error.message);
+      return;
+    }
 
     const { data } = supabase.storage
       .from("read-aloud-recordings")
@@ -126,7 +146,6 @@ function App() {
   return (
     <div className="container">
       <h1>Read Aloud Practice</h1>
-
 
       <div className="card">
         <p className="question">{currentQuestion.text}</p>
@@ -156,6 +175,12 @@ function App() {
             </p>
             <audio controls src={recordingUrl}></audio>
           </div>
+        )}
+
+        {score !== null && (
+          <p>
+            <strong>Score:</strong> {score} / 90
+          </p>
         )}
       </div>
     </div>
